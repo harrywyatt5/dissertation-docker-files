@@ -1,12 +1,14 @@
-FROM nvcr.io/nvidia/tensorrt:26.01-py3
+FROM nvcr.io/nvidia/tensorrt:23.12-py3
 
-COPY scripts/Entrypoint.sh /Entrypoint.sh
+# Required for supporting DISPLAY passthrough
+ENV DISPLAY=:0
+COPY --chmod=777 scripts/Entrypoint.sh /Entrypoint.sh
 
 RUN apt update && apt upgrade -y && apt install -y libopencv-dev \ 
                     build-essential python3-requests ca-certificates curl software-properties-common \
                     git git-lfs gcc-11 g++-11
 COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
-RUN python3 /tmp/InstallOnnxRuntime.py --owner microsoft --repo onnxruntime --dir /opt --tag latest --regex "^onnxruntime-linux-x64-gpu_cuda13.+\\.tgz$"
+RUN python3 /tmp/InstallOnnxRuntime.py --owner microsoft --repo onnxruntime --dir /opt --tag latest --regex "^onnxruntime-linux-x64-gpu-.+\\.tgz$"
 RUN rm /tmp/InstallOnnxRuntime.py
 
 RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') \
