@@ -4,9 +4,11 @@ FROM nvcr.io/nvidia/tensorrt:23.12-py3
 ENV DISPLAY=:0
 COPY --chmod=777 scripts/Entrypoint.sh /Entrypoint.sh
 
-RUN apt update && apt upgrade -y && apt install -y libopencv-dev \ 
-                    build-essential python3-requests ca-certificates curl software-properties-common \
-                    git git-lfs gcc-11 g++-11
+RUN apt update && apt upgrade -y && apt install -y build-essential python3-requests ca-certificates  \ 
+                    curl software-properties-common git \
+                    git-lfs gcc-11 g++-11 \
+                    pkg-config libgtk-3-dev libavcodec-dev \
+                    libavformat-dev libswscale-dev cmake
 COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
 RUN python3 /tmp/InstallOnnxRuntime.py --owner microsoft --repo onnxruntime --dir /opt --tag latest --regex "^onnxruntime-linux-x64-gpu-.+\\.tgz$"
 RUN rm /tmp/InstallOnnxRuntime.py
@@ -29,6 +31,31 @@ RUN touch .eula_accepted
 RUN bash build.sh
 RUN ln -s /isaacsim/_build/linux-x86_64/release /opt/isaacsim
 
+# Install OpenCV with CUDA support
 WORKDIR /workspace
+RUN git clone https://github.com/opencv/opencv.git opencv
+RUN git clone https://github.com/opencv/opencv_contrib.git opencv_contrib
+RUN mkdir opencv/build
+WORKDIR /workspace/opencv/build
+RUN cmake -D CMAKE_BUILD_TYPE=RELEASE \
+            -D CMAKE_INSTALL_PREFIX=/usr/local \
+            -D WITH_CUDA=ON \
+            -D WITH_CUDNN=ON \
+            -D WITH_CUBLAS=ON \
+            -D CUDA_ARCH_BIN=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader) \
+            -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
+            -D CUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so \
+            -D BUILD_opencv_python3=ON \
+            -D HAVE_opencv_python3=ON \
+            -D INSTALL_PYTHON_EXAMPLES=OFF \
+            -D INSTALL_C_EXAMPLES=OFF \
+            -D BUILD_EXAMPLES=OFF ..
+RUN make -j$(nproc)
+RUN make install
+RUN ldconfig
+WORKDIR /workspace
+RUN rm -rf opencv
+RUN rm -rf opencv_contrib
+
 ENTRYPOINT ["/Entrypoint.sh"]
 CMD ["/bin/bash"]
