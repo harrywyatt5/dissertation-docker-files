@@ -2,6 +2,8 @@ FROM nvcr.io/nvidia/tensorrt:26.02-py3
 
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
+ARG NUM_COMPILE_THREADS=8
+ARG NUM_CUDA_COMPILE_THREADS=8
 ENV DISPLAY=:0
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 
@@ -9,19 +11,32 @@ RUN apt update && apt upgrade -y && apt install -y build-essential python3-reque
                     curl software-properties-common git \
                     git-lfs gcc-11 g++-11 \
                     pkg-config libgtk-3-dev libavcodec-dev \
-                    libavformat-dev libswscale-dev cmake \
+                    libavformat-dev libswscale-dev python3-pip \
                     libopencv-dev locales
 RUN git lfs install
-# NVIDIA Isaac Sim doesn't support newer version of g++
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 200 \
-    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 200
 # Required for ROS
 RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+# Load latest cmake and psutil for building onnxruntime
+RUN pip3 install --upgrade cmake && pip3 install psutil
 
 # onnxruntime
-COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
-RUN python3 /tmp/InstallOnnxRuntime.py --owner microsoft --repo onnxruntime --dir /opt --tag latest --regex "^onnxruntime-linux-x64-gpu_cuda13-.+\\.tgz$" \
-    && rm /tmp/InstallOnnxRuntime.py
+WORKDIR /workspace
+RUN mkdir /opt/onnx-built \ 
+    && git clone --recursive https://github.com/Microsoft/onnxruntime.git \
+    && cd onnxruntime \
+    && ./build.sh --allow_running_as_root --config Release --build_shared_lib --parallel ${NUM_COMPILE_THREADS} --nvcc_threads ${NUM_CUDA_COMPILE_THREADS} \
+        --compile_no_warning_as_error --skip_submodule_sync \
+        --cmake_extra_defines "CMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" --cmake_extra_defines CMAKE_INSTALL_PREFIX=/opt/onnx-built \
+        --cudnn_home /usr/include/x86_64-linux-gnu --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /opt/tensorrt --skip_tests \
+    && cd build/Linux/Release \
+    && make install \
+    && cd /workspace \
+    && rm -rf onnxruntime \
+    # We have to move the headers up a layer to be consistent with the prebuilt versions
+    && cd /opt/onnx-built/include/onnxruntime \
+    && mv * .. \
+    && cd .. \
+    && rm -rf onnxruntime
 
 # ROS2
 RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') \
@@ -30,14 +45,6 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && apt update \
     && apt install -y ros-dev-tools ros-jazzy-desktop \
     && rm /tmp/ros2-apt-source.deb
-
-# Isaac Sim
-RUN git clone https://github.com/isaac-sim/IsaacSim.git /isaacsim \
-    && cd /isaacsim \
-    && git lfs pull \
-    && touch .eula_accepted \
-    && bash build.sh \
-    && ln -s /isaacsim/_build/linux-x86_64/release /opt/isaacsim
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
