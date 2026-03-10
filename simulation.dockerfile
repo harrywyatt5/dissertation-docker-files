@@ -10,13 +10,17 @@ RUN apt update && apt upgrade -y && apt install -y build-essential python3-reque
                     git-lfs gcc-11 g++-11 \
                     pkg-config libgtk-3-dev libavcodec-dev \
                     libavformat-dev libswscale-dev cmake \
-                    libopencv-dev locales
+                    libopencv-dev locales gdb
 RUN git lfs install
 # NVIDIA Isaac Sim doesn't support newer version of g++
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 200 \
     && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 200
 # Required for ROS
 RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+# Ensure everything that set in our Entrypoint.sh is also set in the .bashrc
+RUN echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc \
+    echo 'export OMNI_KIT_ALLOW_ROOT=1' >> ~/.bashrc \
+    echo 'export LANG=en_US.UTF-8' >> ~/.bashrc
 
 # onnxruntime
 COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
