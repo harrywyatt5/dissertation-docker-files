@@ -2,8 +2,9 @@ FROM nvcr.io/nvidia/tensorrt:26.02-py3
 
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
-ARG NUM_COMPILE_THREADS=8
-ARG NUM_CUDA_COMPILE_THREADS=8
+ARG TARGETARCH
+ARG NUM_COMPILE_THREADS=1
+ARG NUM_CUDA_COMPILE_THREADS=1
 ENV DISPLAY=:0
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 
@@ -20,14 +21,20 @@ RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.
 RUN pip3 install --upgrade cmake && pip3 install psutil
 
 # onnxruntime
+# Set arch info
 WORKDIR /workspace
-RUN mkdir /opt/onnx-built \ 
+RUN case "${TARGETARCH}" in \
+        "amd64") GNU_FOLDER="x86_64-linux-gnu" ;; \
+        "arm64") GNU_FOLDER="aarch64-linux-gnu" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac \
+    && mkdir /opt/onnx-built \ 
     && git clone --recursive https://github.com/Microsoft/onnxruntime.git \
     && cd onnxruntime \
     && ./build.sh --allow_running_as_root --config Release --build_shared_lib --parallel ${NUM_COMPILE_THREADS} --nvcc_threads ${NUM_CUDA_COMPILE_THREADS} \
         --compile_no_warning_as_error --skip_submodule_sync \
         --cmake_extra_defines "CMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" --cmake_extra_defines CMAKE_INSTALL_PREFIX=/opt/onnx-built \
-        --cudnn_home /usr/include/x86_64-linux-gnu --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /opt/tensorrt --skip_tests \
+        --cudnn_home "/usr/include/${GNU_FOLDER}" --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /opt/tensorrt --skip_tests \
     && cd build/Linux/Release \
     && make install \
     && cd /workspace \
@@ -43,7 +50,7 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb" \
     && dpkg -i /tmp/ros2-apt-source.deb \
     && apt update \
-    && apt install -y ros-dev-tools ros-jazzy-desktop \
+    && apt install -y ros-dev-tools ros-jazzy-ros-base ros-jazzy-rviz2 \
     && rm /tmp/ros2-apt-source.deb
 
 # Install OpenCV with CUDA support
