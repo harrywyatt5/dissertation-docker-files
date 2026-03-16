@@ -95,6 +95,7 @@ RUN mkdir -p /tmp/eigen \
 # Install bytetrack-cpp
 WORKDIR /opt
 RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTrack-cpp \
+    && cd ByteTrack-cpp \
     && mkdir build \
     && cd build \
     && cmake .. \
