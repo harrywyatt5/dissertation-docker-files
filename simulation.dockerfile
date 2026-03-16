@@ -44,8 +44,8 @@ RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /tmp/isaacsim 
     && git lfs pull \
     && touch .eula_accepted \
     && bash build.sh \
-    && mkdir /opt/isaacsim
-    && mv /isaacsim/_build/linux-x86_64/release /opt/isaacsim
+    && mkdir /opt/isaacsim \
+    && mv /isaacsim/_build/linux-x86_64/release /opt/isaacsim \
     && rm -rf /tmp/isaacsim
 
 # Install reachy model
