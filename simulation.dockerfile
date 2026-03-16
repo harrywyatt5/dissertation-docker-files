@@ -3,7 +3,7 @@ FROM nvcr.io/nvidia/tensorrt:26.02-py3
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
 ENV DISPLAY=:0
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 
 RUN apt update && apt upgrade -y && apt install -y build-essential python3-requests ca-certificates  \ 
@@ -22,8 +22,8 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 200 \
 RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 # Ensure everything that set in our Entrypoint.sh is also set in the .bashrc
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc \
-    echo 'export OMNI_KIT_ALLOW_ROOT=1' >> ~/.bashrc \
-    echo 'export LANG=en_US.UTF-8' >> ~/.bashrc
+    && echo 'export OMNI_KIT_ALLOW_ROOT=1' >> ~/.bashrc \
+    && echo 'export LANG=en_US.UTF-8' >> ~/.bashrc
 
 # onnxruntime
 COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
@@ -51,8 +51,8 @@ RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /tmp/isaacsim 
 # Install reachy model
 WORKDIR /opt/isaacsim
 RUN mkdir additional_resources \
-    cd additional_resources \
-    git clone https://github.com/harrywyatt5/reachy2-isaac-sim-with-cameras.git --depth=1 reachy2
+    && cd additional_resources \
+    && git clone https://github.com/harrywyatt5/reachy2-isaac-sim-with-cameras.git --depth=1 reachy2
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
@@ -83,13 +83,15 @@ RUN mkdir /opt/cudaopencv \
 
 # Install Eigen
 ENV EIGEN_VERSION="3.3.9"
-RUN mkdir -p /tmp/eigen && cd /tmp/eigen && \
-    wget https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip && \
-    unzip eigen-${EIGEN_VERSION}.zip -d . && \
-    mkdir /tmp/eigen/eigen-${EIGEN_VERSION}/build && cd /tmp/eigen/eigen-${EIGEN_VERSION}/build/ && \
-    cmake .. && \
-    make install && \
-    cd /tmp && rm -rf eigen
+RUN mkdir -p /tmp/eigen \
+    && cd /tmp/eigen \
+    && wget https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip \
+    && unzip eigen-${EIGEN_VERSION}.zip -d . \
+    && mkdir /tmp/eigen/eigen-${EIGEN_VERSION}/build && cd /tmp/eigen/eigen-${EIGEN_VERSION}/build/ \
+    && cmake .. \
+    && make install \
+    && cd /tmp \
+    && rm -rf eigen
 
 # Install bytetrack-cpp
 WORKDIR /opt
