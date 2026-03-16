@@ -3,6 +3,7 @@ FROM nvcr.io/nvidia/tensorrt:26.02-py3
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
 ENV DISPLAY=:0
+ENV DEBIAN_FRONTEND noninteractive
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 
 RUN apt update && apt upgrade -y && apt install -y build-essential python3-requests ca-certificates  \ 
@@ -10,7 +11,9 @@ RUN apt update && apt upgrade -y && apt install -y build-essential python3-reque
                     git-lfs gcc-11 g++-11 \
                     pkg-config libgtk-3-dev libavcodec-dev \
                     libavformat-dev libswscale-dev cmake \
-                    libopencv-dev locales gdb
+                    libopencv-dev locales gdb \
+                    libssl-dev wget libgtest-dev \
+                    libboost-dev && apt clean
 RUN git lfs install
 # NVIDIA Isaac Sim doesn't support newer version of g++
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 200 \
@@ -36,18 +39,26 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && rm /tmp/ros2-apt-source.deb
 
 # Isaac Sim
-RUN git clone https://github.com/isaac-sim/IsaacSim.git /isaacsim \
-    && cd /isaacsim \
+RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /tmp/isaacsim \
+    && cd /tmp/isaacsim \
     && git lfs pull \
     && touch .eula_accepted \
     && bash build.sh \
-    && ln -s /isaacsim/_build/linux-x86_64/release /opt/isaacsim
+    && mkdir /opt/isaacsim
+    && mv /isaacsim/_build/linux-x86_64/release /opt/isaacsim
+    && rm -rf /tmp/isaacsim
+
+# Install reachy model
+WORKDIR /opt/isaacsim
+RUN mkdir additional_resources \
+    cd additional_resources \
+    git clone https://github.com/harrywyatt5/reachy2-isaac-sim-with-cameras.git --depth=1 reachy2
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
 RUN mkdir /opt/cudaopencv \
-    && git clone https://github.com/opencv/opencv.git opencv \
-    && git clone https://github.com/opencv/opencv_contrib.git opencv_contrib \
+    && git clone https://github.com/opencv/opencv.git --depth=1 opencv \
+    && git clone https://github.com/opencv/opencv_contrib.git --depth=1 opencv_contrib \
     && mkdir opencv/build \
     && cd /workspace/opencv/build \
     && cmake -D CMAKE_BUILD_TYPE=RELEASE \
@@ -69,6 +80,24 @@ RUN mkdir /opt/cudaopencv \
     && cd /workspace \
     && rm -rf opencv \
     && rm -rf opencv_contrib
+
+# Install Eigen
+ENV EIGEN_VERSION="3.3.9"
+RUN mkdir -p /tmp/eigen && cd /tmp/eigen && \
+    wget https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip && \
+    unzip eigen-${EIGEN_VERSION}.zip -d . && \
+    mkdir /tmp/eigen/eigen-${EIGEN_VERSION}/build && cd /tmp/eigen/eigen-${EIGEN_VERSION}/build/ && \
+    cmake .. && \
+    make install && \
+    cd /tmp && rm -rf eigen
+
+# Install bytetrack-cpp
+WORKDIR /opt
+RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTrack-cpp \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc)
 
 ENTRYPOINT ["/Entrypoint.sh"]
 CMD ["/bin/bash"]
