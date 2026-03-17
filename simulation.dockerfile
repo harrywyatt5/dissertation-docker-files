@@ -39,13 +39,12 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && rm /tmp/ros2-apt-source.deb
 
 # Isaac Sim
-RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /tmp/isaacsim \
-    && cd /tmp/isaacsim \
+RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /opt/isaacsim \
+    && cd /opt/isaacsim \
     && git lfs pull \
     && touch .eula_accepted \
     && bash build.sh \
-    && mv /tmp/isaacsim/_build/linux-x86_64/release /opt/isaacsim \
-    && rm -rf /tmp/isaacsim
+    && ln -s /opt/isaacsim/_build/linux-x86_64/release /opt/isaacsim_interface
 
 # Install reachy model
 WORKDIR /opt/isaacsim
