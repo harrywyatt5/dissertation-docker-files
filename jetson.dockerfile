@@ -15,7 +15,7 @@ RUN apt update && apt upgrade -y && apt install -y build-essential python3-reque
                     libavformat-dev libswscale-dev python3-pip \
                     libopencv-dev locales gdb \
                     libssl-dev wget libgtest-dev \
-                    libboost-dev && apt clean
+                    libgmock-dev libboost-dev && apt clean
 RUN git lfs install
 # Required for ROS
 RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
