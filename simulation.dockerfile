@@ -47,7 +47,7 @@ RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /opt/isaacsim 
     && ln -s /opt/isaacsim/_build/linux-x86_64/release /opt/isaacsim_interface
 
 # Install reachy model
-WORKDIR /opt/isaacsim
+WORKDIR /opt/isaacsim_interface
 RUN mkdir additional_resources \
     && cd additional_resources \
     && git clone https://github.com/harrywyatt5/reachy2-isaac-sim-with-cameras.git --depth=1 reachy2

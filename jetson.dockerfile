@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorrt:26.02-py3
+FROM nvcr.io/nvidia/tensorrt:26.02-py3-igpu
 
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
@@ -79,6 +79,27 @@ RUN mkdir /opt/cudaopencv \
     && cd /workspace \
     && rm -rf opencv \
     && rm -rf opencv_contrib
+
+# Install Eigen
+ENV EIGEN_VERSION="3.3.9"
+RUN mkdir -p /tmp/eigen \
+    && cd /tmp/eigen \
+    && wget https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip \
+    && unzip eigen-${EIGEN_VERSION}.zip -d . \
+    && mkdir /tmp/eigen/eigen-${EIGEN_VERSION}/build && cd /tmp/eigen/eigen-${EIGEN_VERSION}/build/ \
+    && cmake .. \
+    && make install \
+    && cd /tmp \
+    && rm -rf eigen
+
+# Install bytetrack-cpp
+WORKDIR /opt
+RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTrack-cpp \
+    && cd ByteTrack-cpp \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc)
 
 ENTRYPOINT ["/Entrypoint.sh"]
 CMD ["/bin/bash"]
