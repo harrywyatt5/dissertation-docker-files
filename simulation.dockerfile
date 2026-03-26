@@ -30,13 +30,30 @@ COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
 RUN python3 /tmp/InstallOnnxRuntime.py --owner microsoft --repo onnxruntime --dir /opt --tag latest --regex "^onnxruntime-linux-x64-gpu_cuda13-.+\\.tgz$" \
     && rm /tmp/InstallOnnxRuntime.py
 
-# ROS2
+# ROS2 and NVIDIA Nitros
 RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') \
     && curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb" \
     && dpkg -i /tmp/ros2-apt-source.deb \
     && apt update \
     && apt install -y ros-dev-tools ros-jazzy-desktop \
-    && rm /tmp/ros2-apt-source.deb
+    && rm /tmp/ros2-apt-source.deb \
+    && k="/usr/share/keyrings/nvidia-isaac-ros.gpg" \
+    && curl -fsSL https://isaac.download.nvidia.com/isaac-ros/repos.key | sudo gpg --dearmor | sudo tee -a $k > /dev/null \
+    && f="/etc/apt/sources.list.d/nvidia-isaac-ros.list" \
+    && touch $f \
+    && s="deb [signed-by=$k] https://isaac.download.nvidia.com/isaac-ros/release-4.3 noble main" \
+    && grep -qxF "$s" $f || echo "$s" | sudo tee -a $f \
+    && apt update \
+    && apt install isaac-ros-cli \
+    && apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
+    && echo 'deb https://repo.download.nvidia.com/jetson/x86_64/noble r38.4 main' | sudo tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
+    && apt update \
+    && rosdep init \
+    && curl -o /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac-ros-cli/release-4.3/docker/rosdep/extra_rosdeps.yaml \
+    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | sudo tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
+    && rosdep update \
+    && isaac-ros init baremetal --yes \
+    && apt install -y --allow-downgrades ros-jazzy-isaac-ros-common ros-jazzy-isaac-ros-nitros ros-jazzy-isaac-ros-managed-nitros ros-jazzy-isaac-ros-nitros-image-type
 
 # Isaac Sim
 RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /opt/isaacsim \
