@@ -53,7 +53,8 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | sudo tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
     && rosdep update \
     && isaac-ros init baremetal --yes \
-    && apt install -y --allow-downgrades ros-jazzy-isaac-ros-common ros-jazzy-isaac-ros-nitros ros-jazzy-isaac-ros-managed-nitros ros-jazzy-isaac-ros-nitros-image-type
+    && apt install -y --allow-downgrades ros-jazzy-isaac-ros-common ros-jazzy-isaac-ros-nitros ros-jazzy-isaac-ros-managed-nitros ros-jazzy-isaac-ros-nitros-image-type \
+    && apt clean
 
 # Isaac Sim
 RUN git clone https://github.com/isaac-sim/IsaacSim.git --depth=1 /opt/isaacsim \
@@ -117,5 +118,6 @@ RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTra
     && cmake .. \
     && make -j$(nproc)
 
+WORKDIR /workspace
 ENTRYPOINT ["/Entrypoint.sh"]
 CMD ["/bin/bash"]
