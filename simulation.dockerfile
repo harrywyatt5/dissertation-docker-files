@@ -44,7 +44,7 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && s="deb [signed-by=$k] https://isaac.download.nvidia.com/isaac-ros/release-4.3 noble main" \
     && grep -qxF "$s" $f || echo "$s" | sudo tee -a $f \
     && apt update \
-    && apt install isaac-ros-cli \
+    && apt install -y isaac-ros-cli \
     && apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
     && echo 'deb https://repo.download.nvidia.com/jetson/x86_64/noble r38.4 main' | sudo tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
     && apt update \
