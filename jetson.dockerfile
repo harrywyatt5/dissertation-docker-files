@@ -1,10 +1,9 @@
 FROM nvcr.io/nvidia/tensorrt:26.02-py3-igpu
 
-# Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
-ARG TARGETARCH
 ARG NUM_COMPILE_THREADS=1
 ARG NUM_CUDA_COMPILE_THREADS=1
+# Required for supporting DISPLAY passthrough
 ENV DISPLAY=:0
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 
@@ -24,18 +23,13 @@ RUN apt update && apt upgrade -y && apt install -y build-essential python3-reque
 # onnxruntime
 # Set arch info
 WORKDIR /workspace
-RUN case "${TARGETARCH}" in \
-        "amd64") GNU_FOLDER="x86_64-linux-gnu" ;; \
-        "arm64") GNU_FOLDER="aarch64-linux-gnu" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
-    esac \
-    && mkdir /opt/onnx-built \ 
+RUN mkdir /opt/onnx-built \ 
     && git clone --recursive --depth=1 https://github.com/Microsoft/onnxruntime.git \
     && cd onnxruntime \
     && ./build.sh --allow_running_as_root --config Release --build_shared_lib --parallel ${NUM_COMPILE_THREADS} --nvcc_threads ${NUM_CUDA_COMPILE_THREADS} \
         --compile_no_warning_as_error --skip_submodule_sync \
         --cmake_extra_defines "CMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" --cmake_extra_defines CMAKE_INSTALL_PREFIX=/opt/onnx-built \
-        --cudnn_home "/usr/include/${GNU_FOLDER}" --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /opt/tensorrt --skip_tests \
+        --cudnn_home "/usr/include/aarch64-linux-gnu" --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /opt/tensorrt --skip_tests \
     && cd build/Linux/Release \
     && make install \
     && cd /workspace \
@@ -53,7 +47,7 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && apt update \
     && apt install -y ros-dev-tools ros-jazzy-ros-base ros-jazzy-rviz2 \
     && rm /tmp/ros2-apt-source.deb \
-        && k="/usr/share/keyrings/nvidia-isaac-ros.gpg" \
+    && k="/usr/share/keyrings/nvidia-isaac-ros.gpg" \
     && curl -fsSL https://isaac.download.nvidia.com/isaac-ros/repos.key | sudo gpg --dearmor | sudo tee -a $k > /dev/null \
     && f="/etc/apt/sources.list.d/nvidia-isaac-ros.list" \
     && touch $f \
@@ -62,15 +56,23 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && apt update \
     && apt install -y isaac-ros-cli \
     && apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
-    && echo 'deb https://repo.download.nvidia.com/jetson/x86_64/noble r38.4 main' | sudo tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
+    && echo 'deb https://repo.download.nvidia.com/jetson/common r38.4 main' | sudo tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
     && apt update \
     && rosdep init \
+    && apt clean \
     && curl -o /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac-ros-cli/release-4.3/docker/rosdep/extra_rosdeps.yaml \
     && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | sudo tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
     && rosdep update \
     && isaac-ros init baremetal --yes \
-    && apt install -y --allow-downgrades ros-jazzy-isaac-ros-common ros-jazzy-isaac-ros-nitros ros-jazzy-isaac-ros-managed-nitros ros-jazzy-isaac-ros-nitros-image-type \
-    && apt clean
+    && mkdir -p /opt/isaac_ros \
+    && cd /opt/isaac_ros \
+    && mkdir src \
+    && git clone -b release-4.3 --depth=1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git \
+    && git clone -b release-4.3 --depth=1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros.git \
+    && cd .. \
+    && source /opt/ros/jazzy/setup.sh \
+    && rosdep install -i -r -y --from-paths src --rosdistro jazzy \
+    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')"
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
@@ -100,12 +102,11 @@ RUN mkdir /opt/cudaopencv \
     && rm -rf opencv_contrib
 
 # Install Eigen
-ENV EIGEN_VERSION="3.3.9"
 RUN mkdir -p /tmp/eigen \
     && cd /tmp/eigen \
     && wget https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip \
-    && unzip eigen-${EIGEN_VERSION}.zip -d . \
-    && mkdir /tmp/eigen/eigen-${EIGEN_VERSION}/build && cd /tmp/eigen/eigen-${EIGEN_VERSION}/build/ \
+    && unzip eigen-3.3.9.zip -d . \
+    && mkdir /tmp/eigen/eigen-3.3.9/build && cd /tmp/eigen/eigen-3.3.9/build/ \
     && cmake .. \
     && make install \
     && cd /tmp \
