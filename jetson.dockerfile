@@ -7,7 +7,9 @@ ARG NUM_CUDA_COMPILE_THREADS=1
 ENV DISPLAY=:0
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 
-RUN apt update && apt upgrade -y && apt install -y build-essential python3-requests ca-certificates  \ 
+# Clean up base image :))
+RUN rm -rf /ffmpeg-4.4.2.tar.bz2 && rm -rf /opt/hpcx
+RUN apt update && apt install -y build-essential python3-requests ca-certificates  \ 
                     curl software-properties-common git \
                     git-lfs gcc-11 g++-11 \
                     pkg-config libgtk-3-dev libavcodec-dev \
@@ -18,7 +20,7 @@ RUN apt update && apt upgrade -y && apt install -y build-essential python3-reque
                     && apt clean \
                     && git lfs install \
                     && locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
-                    && pip3 install --upgrade cmake && pip3 install psutil
+                    && pip3 install --upgrade --break-system-package cmake && pip3 install --break-system-package psutil
 
 # onnxruntime
 # Set arch info
@@ -29,7 +31,7 @@ RUN mkdir /opt/onnx-built \
     && ./build.sh --allow_running_as_root --config Release --build_shared_lib --parallel ${NUM_COMPILE_THREADS} --nvcc_threads ${NUM_CUDA_COMPILE_THREADS} \
         --compile_no_warning_as_error --skip_submodule_sync \
         --cmake_extra_defines "CMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" --cmake_extra_defines CMAKE_INSTALL_PREFIX=/opt/onnx-built \
-        --cudnn_home "/usr/include/aarch64-linux-gnu" --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /opt/tensorrt --skip_tests \
+        --cudnn_home /usr --cuda_home /usr/local/cuda --use_cuda --use_tensorrt --tensorrt_home /usr --skip_tests \
     && cd build/Linux/Release \
     && make install \
     && cd /workspace \
@@ -56,6 +58,7 @@ RUN mkdir /opt/cudaopencv \
             -D OPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules \
             -D CUDA_CUDA_LIBRARY=/usr/local/cuda/lib64/stubs/libcuda.so \
             -D OPENCV_DNN_CUDA=ON \
+            -D WITH_MPI=OFF \
             -D BUILD_opencv_python3=ON \
             -D HAVE_opencv_python3=ON \
             -D INSTALL_PYTHON_EXAMPLES=OFF \
@@ -73,7 +76,7 @@ RUN mkdir -p /tmp/eigen \
     && wget https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip \
     && unzip eigen-3.3.9.zip -d . \
     && mkdir /tmp/eigen/eigen-3.3.9/build && cd /tmp/eigen/eigen-3.3.9/build/ \
-    && cmake .. \
+    && cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     && make install \
     && cd /tmp \
     && rm -rf eigen
