@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorrt:26.02-py3-igpu
+FROM nvcr.io/nvidia/isaac/ros:noble-ros2_jazzy_d3e84470d576702a380478a513fb3fc6-arm64
 
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
@@ -44,40 +44,6 @@ RUN mkdir /opt/onnx-built \
     && mv * .. \
     && cd .. \
     && rm -rf onnxruntime
-
-# ROS2
-RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') \
-    && curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb" \
-    && dpkg -i /tmp/ros2-apt-source.deb \
-    && apt update \
-    && apt install -y ros-dev-tools ros-jazzy-ros-base ros-jazzy-rviz2 \
-    && rm /tmp/ros2-apt-source.deb \
-    && k="/usr/share/keyrings/nvidia-isaac-ros.gpg" \
-    && curl -fsSL https://isaac.download.nvidia.com/isaac-ros/repos.key | sudo gpg --dearmor | sudo tee -a $k > /dev/null \
-    && f="/etc/apt/sources.list.d/nvidia-isaac-ros.list" \
-    && touch $f \
-    && s="deb [signed-by=$k] https://isaac.download.nvidia.com/isaac-ros/release-4.3 noble main" \
-    && grep -qxF "$s" $f || echo "$s" | sudo tee -a $f \
-    && apt update \
-    && apt install -y isaac-ros-cli \
-    && apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
-    && echo 'deb https://repo.download.nvidia.com/jetson/common r38.4 main' | sudo tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
-    && apt update \
-    && rosdep init \
-    && apt clean \
-    && curl -o /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac-ros-cli/release-4.3/docker/rosdep/extra_rosdeps.yaml \
-    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | sudo tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
-    && rosdep update \
-    && isaac-ros init baremetal --yes \
-    && mkdir -p /opt/isaac_ros \
-    && cd /opt/isaac_ros \
-    && mkdir src \
-    && git clone -b release-4.3 --depth=1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git \
-    && git clone -b release-4.3 --depth=1 https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_nitros.git \
-    && cd .. \
-    && source /opt/ros/jazzy/setup.sh \
-    && rosdep install -i -r -y --from-paths src --rosdistro jazzy \
-    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')"
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
