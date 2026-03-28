@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/isaac/ros:noble-ros2_jazzy_d3e84470d576702a380478a513fb3fc6-arm64
+FROM nvcr.io/nvidia/isaac/ros:aarch64-ros2_humble_4c0c55dddd2bbcc3e8d5f9753bee634c
 
 # Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
@@ -13,7 +13,7 @@ COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
 ADD nvidia_libs.tar.gz /
 
 # Clean up base image :))
-RUN rm -rf /ffmpeg-4.4.2.tar.bz2 && rm -rf /opt/hpcx
+RUN rm -rf /ffmpeg-4.4.2.tar.bz2
 RUN apt update && apt install -y build-essential python3-requests ca-certificates  \ 
                     curl software-properties-common git \
                     git-lfs gcc-11 g++-11 \
@@ -28,7 +28,6 @@ RUN apt update && apt install -y build-essential python3-requests ca-certificate
                     && pip3 install --upgrade --break-system-package cmake && pip3 install --break-system-package psutil
 
 # onnxruntime
-# Set arch info
 WORKDIR /workspace
 RUN mkdir /opt/onnx-built \ 
     && git clone --recursive --depth=1 https://github.com/Microsoft/onnxruntime.git \
@@ -46,6 +45,16 @@ RUN mkdir /opt/onnx-built \
     && mv * .. \
     && cd .. \
     && rm -rf onnxruntime
+
+# Isaac Ros extras 
+# We have to refresh the ROS key uff
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  | gpg --dearmor | tee /usr/share/keyrings/ros-archive-keyring.gpg > /dev/null \
+    apt update \
+    apt install -y \
+        ros-humble-isaac-ros-nitros \
+        ros-humble-isaac-ros-nitros-image-type \
+        ros-humble-isaac-ros-nitros-camera-info-type \
+        ros-humble-isaac-ros-common
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
