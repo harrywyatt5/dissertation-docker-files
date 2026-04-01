@@ -68,7 +68,8 @@ RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key  | 
         ros-humble-isaac-ros-nitros \
         ros-humble-isaac-ros-nitros-image-type \
         ros-humble-isaac-ros-nitros-camera-info-type \
-        ros-humble-isaac-ros-common
+        ros-humble-isaac-ros-common \
+        ros-humble-isaac-ros-managed-nitros
 
 # Install OpenCV with CUDA support
 WORKDIR /workspace
