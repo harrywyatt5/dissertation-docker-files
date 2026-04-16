@@ -121,7 +121,7 @@ RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTra
 
 # Install llama.cpp (we pick a specific commit because they always seem to introduce breaking changes...)
 RUN cd /opt \
-    && git clone --depth 1 -b b572d1ecd62210229e04cdeffd3ae80dd59f0921 https://github.com/ggml-org/llama.cpp.git \
+    && git clone --depth 1 -b b8815 https://github.com/ggml-org/llama.cpp.git \
     && cd llama.cpp \
     && mkdir build \
     && cd build \
