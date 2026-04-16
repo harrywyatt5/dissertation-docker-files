@@ -41,19 +41,19 @@ RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-inf
     && apt install -y ros-dev-tools ros-jazzy-desktop \
     && rm /tmp/ros2-apt-source.deb \
     && k="/usr/share/keyrings/nvidia-isaac-ros.gpg" \
-    && curl -fsSL https://isaac.download.nvidia.com/isaac-ros/repos.key | sudo gpg --dearmor | sudo tee -a $k > /dev/null \
+    && curl -fsSL https://isaac.download.nvidia.com/isaac-ros/repos.key | gpg --dearmor | tee -a $k > /dev/null \
     && f="/etc/apt/sources.list.d/nvidia-isaac-ros.list" \
     && touch $f \
     && s="deb [signed-by=$k] https://isaac.download.nvidia.com/isaac-ros/release-4.3 noble main" \
-    && grep -qxF "$s" $f || echo "$s" | sudo tee -a $f \
+    && grep -qxF "$s" $f || echo "$s" | tee -a $f \
     && apt update \
     && apt install -y isaac-ros-cli \
     && apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
-    && echo 'deb https://repo.download.nvidia.com/jetson/x86_64/noble r38.4 main' | sudo tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
+    && echo 'deb https://repo.download.nvidia.com/jetson/x86_64/noble r38.4 main' | tee /etc/apt/sources.list.d/nvidia-jetson-apt-source.list \
     && apt update \
     && rosdep init \
     && curl -o /etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml https://raw.githubusercontent.com/NVIDIA-ISAAC-ROS/isaac-ros-cli/release-4.3/docker/rosdep/extra_rosdeps.yaml \
-    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | sudo tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
+    && echo "yaml file:///etc/ros/rosdep/sources.list.d/nvidia-isaac.yaml" | tee /etc/ros/rosdep/sources.list.d/00-nvidia-isaac.list \
     && rosdep update \
     && isaac-ros init baremetal --yes \
     && apt install -y --allow-downgrades ros-jazzy-isaac-ros-common ros-jazzy-isaac-ros-nitros ros-jazzy-isaac-ros-managed-nitros ros-jazzy-isaac-ros-nitros-image-type \
