@@ -151,7 +151,7 @@ RUN cd /workspace \
     && cd ../.. \
     && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups.git \
     && cd detecting-groups \
-    && cd models \
+    && cd gemma-model \
     && wget https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf \
     && wget https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-F16.gguf \
     && cd ../.. \
