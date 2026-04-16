@@ -127,12 +127,13 @@ RUN cd /opt \
     && cd llama.cpp \
     && mkdir build \
     && cd build \
-    && ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
+    && ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/lib/x86_64-linux-gnu/libcuda.so.1 \
     && export LIBRARY_PATH=/usr/local/cuda/lib64/stubs:$LIBRARY_PATH \
     && cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr \
     && cmake --build . --config Release -j $(nproc) \
     && cmake --install . \
     && ldconfig \
+    && rm /usr/lib/x86_64-linux-gnu/libcuda.so.1 \
     && rm -rf /opt/llama.cpp
 
 # Install our packages
