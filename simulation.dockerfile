@@ -5,6 +5,7 @@ ARG TARGET_CUDA_ARCH
 ENV DISPLAY=:0
 ENV DEBIAN_FRONTEND=noninteractive
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
+COPY scripts/fastRTPS_fix.xml /workspace/fastRTPS_fix.xml
 
 RUN apt update && apt upgrade -y && apt install -y build-essential python3-requests ca-certificates  \ 
                     curl software-properties-common git \
@@ -23,7 +24,9 @@ RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.
 # Ensure everything that set in our Entrypoint.sh is also set in the .bashrc
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc \
     && echo 'export OMNI_KIT_ALLOW_ROOT=1' >> ~/.bashrc \
-    && echo 'export LANG=en_US.UTF-8' >> ~/.bashrc
+    && echo 'export LANG=en_US.UTF-8' >> ~/.bashrc \
+    && echo 'source /workspace/ros_packages/install/local_setup.bash' >> ~/.bashrc \
+    && echo 'export FASTRTPS_DEFAULT_PROFILES_FILE=/workspace/fastRTPS_fix.xml' >> ~/.bashrc
 
 # onnxruntime
 COPY scripts/InstallOnnxRuntime.py /tmp/InstallOnnxRuntime.py
@@ -117,6 +120,41 @@ RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTra
     && cd build \
     && cmake .. \
     && make -j$(nproc)
+
+# Install llama.cpp (we pick a specific commit because they always seem to introduce breaking changes...)
+RUN cd /opt \
+    && git clone --depth 1 -b b572d1ecd62210229e04cdeffd3ae80dd59f0921 https://github.com/ggml-org/llama.cpp.git \
+    && cd llama.cpp \
+    && mkdir build \
+    && cd build \
+    && cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr \
+    && cmake --build . --config Release -j $(nproc) \
+    && cmake --install . \
+    && ldconfig \
+    && rm -rf /opt/llama.cpp
+
+# Install our packages
+RUN cd /workspace \
+    && mkdir ros_packages \
+    && cd ros_packages \
+    && mkdir src \
+    && git clone --depth 1 -b share-cuda-stream https://github.com/harrywyatt5/detecting-humans-computer-vision.git \
+    && cd detecting-humans-computer-vision \
+    && mkdir sam3-onnx \
+    && cd sam3-onnx \
+    && wget https://github.com/harrywyatt5/detecting-humans-computer-vision/releases/download/model-release/decoder-static.onnx \
+    && wget https://github.com/harrywyatt5/detecting-humans-computer-vision/releases/download/model-release/text-encoder-static.onnx \
+    && wget https://github.com/harrywyatt5/detecting-humans-computer-vision/releases/download/model-release/vision-encoder-static.onnx \
+    && cd ../.. \
+    && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups.git \
+    && cd detecting-groups \
+    cd models \
+    && wget https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf \
+    && wget https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-F16.gguf \
+    && cd ../.. \
+    && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups-custom-msg.git \
+    && source /opt/ros/jazzy/setup.bash \
+    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g') -DCMAKE_BUILD_TYPE=Release
 
 WORKDIR /workspace
 ENTRYPOINT ["/Entrypoint.sh"]

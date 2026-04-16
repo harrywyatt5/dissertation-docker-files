@@ -1,15 +1,13 @@
 FROM nvcr.io/nvidia/isaac/ros:aarch64-ros2_humble_4c0c55dddd2bbcc3e8d5f9753bee634c
 
+# Required for supporting DISPLAY passthrough
 ARG TARGET_CUDA_ARCH
 ARG NUM_COMPILE_THREADS=1
 ARG NUM_CUDA_COMPILE_THREADS=1
-# Required for supporting DISPLAY passthrough
 ENV DISPLAY=:0
+ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/nvidia:$LD_LIBRARY_PATH 
 COPY --chmod=700 scripts/Entrypoint.sh /Entrypoint.sh
-
-# The difference with the remote package is we deploy some stub shared objects so
-# it can build on a platform which is not Jetson
-ADD nvidia_libs.tar.gz /
+COPY scripts/fastRTPS_fix.xml /workspace/fastRTPS_fix.xml
 
 # Clean up base image :))
 RUN rm -rf /ffmpeg-4.4.2.tar.bz2 \
@@ -30,7 +28,8 @@ RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y \
             libssl-dev wget libgtest-dev \
             libgmock-dev libboost-dev libcudnn9-dev-cuda-12 \
             libcudnn9-cuda-12 libcudnn9-headers-cuda-12 gcc-13 \
-            g++-13 \
+            g++-13 ros-humble-realsense2-camera ros-humble-realsense2-description \
+            wget \
     && apt clean \
     && git lfs install \
     && locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
@@ -119,6 +118,41 @@ RUN git clone https://github.com/harrywyatt5/ByteTrack-cpp.git --depth=1 ByteTra
     && cd build \
     && cmake .. \
     && make -j$(nproc)
+
+# Install llama.cpp (we pick a specific commit because they always seem to introduce breaking changes...)
+RUN cd /opt \
+    && git clone --depth 1 -b b572d1ecd62210229e04cdeffd3ae80dd59f0921 https://github.com/ggml-org/llama.cpp.git \
+    && cd llama.cpp \
+    && mkdir build \
+    && cd build \
+    && cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr \
+    && cmake --build . --config Release -j $(nproc) \
+    && cmake --install . \
+    && ldconfig \
+    && rm -rf /opt/llama.cpp
+
+# Install our packages
+RUN cd /workspace \
+    && mkdir ros_packages \
+    && cd ros_packages \
+    && mkdir src \
+    && git clone --depth 1 -b share-cuda-stream https://github.com/harrywyatt5/detecting-humans-computer-vision.git \
+    && cd detecting-humans-computer-vision \
+    && mkdir sam3-onnx \
+    && cd sam3-onnx \
+    && wget https://github.com/harrywyatt5/detecting-humans-computer-vision/releases/download/model-release/decoder-static.onnx \
+    && wget https://github.com/harrywyatt5/detecting-humans-computer-vision/releases/download/model-release/text-encoder-static.onnx \
+    && wget https://github.com/harrywyatt5/detecting-humans-computer-vision/releases/download/model-release/vision-encoder-static.onnx \
+    && cd ../.. \
+    && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups.git \
+    && cd detecting-groups \
+    cd models \
+    && wget https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-UD-Q4_K_XL.gguf \
+    && wget https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-F16.gguf \
+    && cd ../.. \
+    && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups-custom-msg.git \
+    && source /opt/ros/humble/setup.bash \
+    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g') -DCMAKE_BUILD_TYPE=Release
 
 WORKDIR /workspace
 ENTRYPOINT ["/Entrypoint.sh"]
