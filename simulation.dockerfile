@@ -127,6 +127,8 @@ RUN cd /opt \
     && cd llama.cpp \
     && mkdir build \
     && cd build \
+    && ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
+    && export LIBRARY_PATH=/usr/local/cuda/lib64/stubs:$LIBRARY_PATH \
     && cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr \
     && cmake --build . --config Release -j $(nproc) \
     && cmake --install . \
@@ -154,7 +156,7 @@ RUN cd /workspace \
     && cd ../.. \
     && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups-custom-msg.git \
     && source /opt/ros/jazzy/setup.bash \
-    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES=$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g') -DCMAKE_BUILD_TYPE=Release
+    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DCMAKE_BUILD_TYPE=Release
 
 WORKDIR /workspace
 ENTRYPOINT ["/Entrypoint.sh"]
