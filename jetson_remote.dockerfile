@@ -156,7 +156,9 @@ RUN cd /workspace \
     && cd ../.. \
     && git clone --depth 1 https://github.com/harrywyatt5/detecting-groups-custom-msg.git \
     && source /opt/ros/humble/setup.bash \
-    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DCMAKE_BUILD_TYPE=Release
+    && ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/lib/x86_64-linux-gnu/libcuda.so.1 \
+    && colcon build --symlink-install --cmake-args -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DCMAKE_BUILD_TYPE=Release \
+    && rm /usr/lib/x86_64-linux-gnu/libcuda.so.1
 
 WORKDIR /workspace
 ENTRYPOINT ["/Entrypoint.sh"]
