@@ -129,7 +129,7 @@ RUN cd /opt \
     && cd llama.cpp \
     && mkdir build \
     && cd build \
-    && cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr \
+    && cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="$(echo ${TARGET_CUDA_ARCH} | sed 's/\.//g')" -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX=/usr -DGGML_CUDA_NO_VMM=ON \
     && cmake --build . --config Release -j $(nproc) \
     && cmake --install . \
     && ldconfig \
